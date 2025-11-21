@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { GUI } from 'lil-gui';
 
 // DOM Elements
@@ -77,13 +78,84 @@ function initThreeJS() {
     bloomFolder.add(bloomPass, 'strength', 0, 5).name('Strength');
     bloomFolder.add(bloomPass, 'radius', 0, 1).name('Radius');
     bloomFolder.add(bloomPass, 'threshold', 0, 1).name('Threshold');
-    bloomFolder.open();
+    // bloomFolder.open();
+
+    // Anamorphic Flare Shader
+    const AnamorphicFlareShader = {
+        uniforms: {
+            'tDiffuse': { value: null },
+            'strength': { value: 0.5 }, // Multiplier for the flare
+            'threshold': { value: 0.9 }, // Brightness threshold
+            'scale': { value: 1.0 }, // Horizontal spread scale
+            'resolution': { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+        },
+        vertexShader: `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+            }
+        `,
+        fragmentShader: `
+            uniform sampler2D tDiffuse;
+            uniform float strength;
+            uniform float threshold;
+            uniform float scale;
+            uniform vec2 resolution;
+            varying vec2 vUv;
+
+            void main() {
+                vec4 texel = texture2D( tDiffuse, vUv );
+                vec3 originalColor = texel.rgb;
+                
+                // Horizontal blur loop
+                vec3 flare = vec3(0.0);
+                float step = 1.0 / resolution.x * scale;
+                
+                // Sample horizontally
+                // We'll take fewer samples with larger steps for performance/style
+                for (float i = -10.0; i <= 10.0; i += 1.0) {
+                    if (i == 0.0) continue;
+                    
+                    vec2 offset = vec2(i * step * 2.0, 0.0); // *2.0 to spread it out more
+                    vec4 sampleCol = texture2D( tDiffuse, vUv + offset );
+                    
+                    // Check brightness
+                    float brightness = max(sampleCol.r, max(sampleCol.g, sampleCol.b));
+                    
+                    if (brightness > threshold) {
+                        // Distance attenuation
+                        float weight = 1.0 / (abs(i) + 1.0);
+                        flare += sampleCol.rgb * weight;
+                    }
+                }
+                
+                // Add flare to original
+                gl_FragColor = vec4( originalColor + flare * strength, texel.a );
+            }
+        `
+    };
+
+    const flarePass = new ShaderPass(AnamorphicFlareShader);
+    flarePass.uniforms['threshold'].value = 2; // Only pick up very bright things (lasers are > 1)
+    flarePass.uniforms['strength'].value = 0.2;
+    flarePass.uniforms['scale'].value = 3.8; // Spread it out
+
+    const flareFolder = gui.addFolder('Anamorphic Flare');
+    flareFolder.add(flarePass.uniforms['strength'], 'value', 0, 5).name('Strength');
+    flareFolder.add(flarePass.uniforms['threshold'], 'value', 0, 2).name('Threshold');
+    flareFolder.add(flarePass.uniforms['scale'], 'value', 0, 20).name('Spread');
+    flareFolder.open();
 
     const outputPass = new OutputPass();
 
     composer = new EffectComposer(renderer);
     composer.addPass(renderScene);
     composer.addPass(bloomPass);
+    composer.addPass(flarePass); // Add flare after bloom (or before? After bloom means we flare the bloom too, which might be nice)
+    // Actually, if we flare after bloom, we might flare the glow.
+    // If we flare before bloom, bloom will glow the flare.
+    // Let's try after bloom first to streak the glow.
     composer.addPass(outputPass);
 
     // Resize debug canvas
@@ -155,6 +227,14 @@ function onWindowResize() {
     composer.setSize(width, height);
     debugCanvas.width = width;
     debugCanvas.height = height;
+    
+    // Update flare resolution
+    // We need to access flarePass here. It's not global.
+    // Let's make it accessible or just iterate passes.
+    const flarePass = composer.passes.find(p => p.uniforms && p.uniforms.resolution);
+    if (flarePass) {
+        flarePass.uniforms.resolution.value.set(width, height);
+    }
 }
 
 function animate() {
