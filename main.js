@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GUI } from 'lil-gui';
 
 // DOM Elements
 const videoElement = document.getElementsByClassName('input_video')[0];
@@ -66,9 +67,17 @@ function initThreeJS() {
         new THREE.Vector2(width, height),
         1.5, 0.4, 0.85
     );
-    bloomPass.strength = 1.8; 
+    bloomPass.strength = 1.87; 
     bloomPass.radius = 0.15;
-    bloomPass.threshold = 0.9; // Higher threshold to avoid blooming the video too much
+    bloomPass.threshold = 0.999; // Higher threshold to avoid blooming the video too much
+
+    // Debug GUI
+    const gui = new GUI();
+    const bloomFolder = gui.addFolder('Bloom Settings');
+    bloomFolder.add(bloomPass, 'strength', 0, 5).name('Strength');
+    bloomFolder.add(bloomPass, 'radius', 0, 1).name('Radius');
+    bloomFolder.add(bloomPass, 'threshold', 0, 1).name('Threshold');
+    bloomFolder.open();
 
     const outputPass = new OutputPass();
 
