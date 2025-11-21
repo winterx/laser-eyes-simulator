@@ -1,9 +1,13 @@
 <div align="center">
-  <img src="./assets/logo.jpg" alt="Logo" width="200">
+  <img src="./assets/logo.jpg" alt="Logo" width="160" style="border-radius: 80px">
   <h1>Laser Eyes Simulator</h1>
 </div>
 
 A fun web application that adds a cool laser eye effect to your photos or webcam feed! 
+
+<div align="center">
+    <video src="./assets/demo.mp4" width="80%" controls autoplay loop muted></video>
+</div>
 
 ## 🛠 Implementation
 
