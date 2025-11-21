@@ -175,3 +175,19 @@ h1.title {
     opacity: 1;
     transform: scale(1.1);
 }
+
+.personal-link {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 20;
+    opacity: 0.7;
+    font-family: sans-serif;
+    color: #fff;
+    font-weight: bold;
+    transition: opacity 0.3s, transform 0.3s;
+}
+.personal-link:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
